@@ -3,11 +3,11 @@
 A IPV4 & IPV6 packet sniffer, written in C. Uses the PCAP library and half a dozen netinet header files.
 
 Identifies: 
-  IPv4 & IPv6 headers 
+ <li> IPv4 & IPv6 headers 
   IPv6 extension headers
   Source and destination addresses
   Source and destination ports
-  Transport Layer protocols (TCP/UDP/ICMP)
+  Transport Layer protocols (TCP/UDP/ICMP)</li>
   
   Todo: 
     Check logic for TCP port identification.
