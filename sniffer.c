@@ -1,18 +1,18 @@
+
 /* sniffer.c
  *
  * main() and gotPacket() by David C Harrison (david.harrison@ecs.vuw.ac.nz) July 2015, used here with attribution.
  *
  * Heavily extended and modified from the original. All other work is from Jim Rush unless otherwise specified.
- * 
- * Use as-is, modification, and/or inclusion in derivative works is permitted only if 
- * the original author (David) is credited. 
- * 
+ *
+ * Use as-is, modification, and/or inclusion in derivative works is permitted only if
+ * the original author (David) is credited.
+ *
  * **Usage*
- * To compile: gcc -o sniffer sniffer.c -l pcap 
+ * To compile: gcc -o sniffer sniffer.c -l pcap
  * To run: tcpdump -s0 -w - | ./sniffer -
  * Or: ./sniffer <some file captured from tcpdump or wireshark>
  */
-
 
 #include <stdio.h>
 #include <ctype.h>
@@ -27,25 +27,20 @@
 #include <netinet/ip_icmp.h>//need this for icmp for ipv4
 #include <arpa/inet.h>//need this for inet_ntoa
 
-static int packetCount = 0;	
-
-
+static int packetCount = 0;
 
 void check_ICMP_6_type(uint8_t type){
 	printf("ICMP6 type: %u\n", type);// need to fix the cast
-	//printf("Hey");//do comparisons here
-
 }
 
 //Ouch. This is what we do when we have an IPV4 ICMP packet
 void check_ICMP_4_type(u_int8_t type) {
-
 	printf("ICMP4 type: ");
 	switch(type) {
 		case ICMP_ECHOREPLY :
 			printf("Echo reply\n");
 			break;
-		case ICMP_SOURCE_QUENCH :
+		case ICMP_SOURCEQUENCH :
 			printf ("Source Quench\n");
 			break;
 		case ICMP_REDIRECT :
@@ -54,31 +49,31 @@ void check_ICMP_4_type(u_int8_t type) {
 		case ICMP_ECHO :
 			printf("Echo\n");
 			break;
-		case ICMP_TIME_EXCEEDED :
+		case ICMP_TIMXCEED :
 			printf("Time Exceeded\n");
 			break;
-		case ICMP_PARAMETERPROB :
+		case ICMP_PARAMPROB :
 			printf ("Parameter problem\n");
 			break;
-		case ICMP_TIMESTAMP :
+		case ICMP_TSTAMP :
 			printf("Timestamp request\n");
 			break;
-		case ICMP_TIMESTAMPREPLY :
+		case ICMP_TSTAMPREPLY :
 			printf ("Timestamp reply\n");
 			break;
-		case ICMP_INFO_REQUEST :
+		case ICMP_IREQ :
 			printf("Info request\n");
 			break;
-		case ICMP_INFO_REPLY :
+		case ICMP_IREQREPLY :
 			printf("Informatino reply\n");
 			break;
-		case ICMP_ADDRESS :
+		case ICMP_MASKREQ :
 			printf ("Address mask request\n");
 			break;
-		case ICMP_ADDRESSREPLY :
+		case ICMP_MASKREPLY :
 			printf("Address mask reply\n");
 			break;
-		default: 
+		default:
 			printf("Other\n");
 	}
 }
@@ -90,8 +85,8 @@ void got_TCP(const u_char *packet){
 	printf("Protocol: TCP\n");
 	printf("Source port: %u\n", tcph->source);
 	printf("Destination port: %u\n", tcph -> dest);
-	
-	
+
+
 }
 
 //passed a UDP packet
@@ -110,11 +105,10 @@ void got_ICMP_ipv4(const u_char *packet){
 }
 
 void got_ICMP_ipv6(const u_char *packet) {
-		
-		struct icmp6_hdr *icmp6_header = (struct icmp6_hdr*) (packet);//cast to ICMP 6 header
-		printf("Protocol: ICMP_ipv6\n");
-		check_ICMP_6_type(icmp6_header->icmp6_type);
-	}
+	struct icmp6_hdr *icmp6_header = (struct icmp6_hdr*) (packet);//cast to ICMP 6 header
+	printf("Protocol: ICMP_ipv6\n");
+	check_ICMP_6_type(icmp6_header->icmp6_type);
+}
 
 void got_ip4_packet(const u_char *packet) {//now points at first byte of IP packet
 	struct ip *iph = (struct ip*) (packet); //cast the ipv4 packet into the struct
@@ -129,17 +123,16 @@ void got_ip4_packet(const u_char *packet) {//now points at first byte of IP pack
 			break;
 		case IPPROTO_UDP :
 			got_UDP(packet + sizeof(struct ip));
-			//got UDP 
+			//got UDP
 			break;
 		case IPPROTO_ICMP :
 			got_ICMP_ipv4(packet + sizeof(struct ip));
 			//got_ICMP_ipv4
 			break;
-		default : 
+		default :
 			printf("Not sure what carrier protocol this is.\n");
-	}	
+	}
 }
-
 
 //This is the recursive method to parse the ipv6 extension headers/protocol
 void parse_ext_headers(const u_char *packet, uint8_t next_header){
@@ -185,26 +178,24 @@ void parse_ext_headers(const u_char *packet, uint8_t next_header){
 			printf("Extension header type: Unknown\n");
 			break;
 	}
-
 }
 
 //Function for dealing with IPV6
 void got_ipv6_packet(const u_char *packet){
 	struct ip6_hdr *ipv6_header = (struct ip6_hdr*) (packet); //cast the packet to a ip6 header
-	
+
 	char source[INET6_ADDRSTRLEN];//declare source address
 	char destination[INET6_ADDRSTRLEN];//declare destination address
-	
+
 	inet_ntop(AF_INET6, &(ipv6_header->ip6_src), source, INET6_ADDRSTRLEN);//pull out source into source char[]
 	inet_ntop(AF_INET6, &(ipv6_header->ip6_dst), destination, INET6_ADDRSTRLEN);//dest
-	
+
 	printf("Source address: %s\n", source);
 	printf("Destination address: %s\n", destination);
 	//What protocol do we have?
 	//It may not be a protocol, but a chain of extension headers and THEN a protocol
 	int next_header = ipv6_header->ip6_ctlun.ip6_un1.ip6_un1_nxt;//pull out next header and pass to method
 	parse_ext_headers(packet + sizeof(struct ip6_hdr), next_header); //send off the packet and the next header to be looked at
-
 }
 
 //Called on every packet
@@ -217,7 +208,7 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *pa
 	packetCount++;
 	printf("Ether type: " );
 	switch(ntohs(eh->ether_type)) {//convert from host byte order to network byte
-		
+
 		case ETHERTYPE_IP :
 			printf("IPV4\n");
 			got_ip4_packet(packet + sizeof(struct ether_header));
@@ -229,7 +220,6 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *pa
 		default :
 			printf("Unknown/Other\n");
 	}
-
 }
 
 
@@ -245,5 +235,4 @@ int main (int argc, char **argv){
 	pcap_close(handle); //close the pcap session
 
 	return 0;
-
 }
